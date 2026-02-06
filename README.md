@@ -333,10 +333,4 @@ AI-powered algorithm matches students with mentors based on:
 
 This project is proprietary software. All rights reserved.
 
-## Acknowledgments
 
-- React team for the amazing framework
-- Prisma team for the excellent ORM
-- Tailwind CSS for the utility-first CSS framework
-- Lucide for the beautiful icons
-- All contributors and mentors who make this platform possible
