@@ -1,0 +1,61 @@
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
+
+const authRoutes = require('./routes/authRoutes');
+const studentRoutes = require('./routes/studentRoutes');
+const mentorRoutes = require('./routes/mentorRoutes');
+const courseRoutes = require('./routes/courseRoutes');
+const bookingRoutes = require('./routes/bookingRoutes');
+const otherRoutes = require('./routes/otherRoutes');
+const prisma = require('./config/database');
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/student', studentRoutes);
+app.use('/api/mentors', mentorRoutes);
+app.use('/api/courses', courseRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api', otherRoutes);
+
+// Health Check
+app.get('/api/health', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ 
+      status: 'OK', 
+      message: 'Server is running',
+      database: 'Connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'ERROR', 
+      message: 'Database connection failed',
+      error: error.message 
+    });
+  }
+});
+
+// Start Server
+app.listen(PORT, async () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+  
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    console.log('✅ Database connected successfully');
+    console.log('📦 Database: pathfinder_ai');
+    console.log('🔗 Ready to accept requests!');
+  } catch (error) {
+    console.error('❌ Database connection failed:', error.message);
+    console.log('💡 Check your .env file and PostgreSQL connection');
+  }
+});
