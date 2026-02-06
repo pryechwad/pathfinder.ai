@@ -19,6 +19,10 @@ const StudentDashboard = ({ user }) => {
   const [showAssessmentModal, setShowAssessmentModal] = useState(false);
   const [showTestModal, setShowTestModal] = useState(false);
   const [showHackathonModal, setShowHackathonModal] = useState(false);
+  const [showAIChatModal, setShowAIChatModal] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
@@ -65,7 +69,6 @@ const StudentDashboard = ({ user }) => {
         setBookedSessions(dashboardResponse.data.user.bookings || []);
         setMentors(mentorsResponse.data || []);
         setLoading(false);
-        showSuccess(`Welcome back, ${user.fullName?.split(' ')[0] || 'Student'}! 🎉`);
       } catch (error) {
         console.error('Error fetching dashboard:', error);
         setLoading(false);
@@ -286,6 +289,8 @@ const StudentDashboard = ({ user }) => {
 
   const handlePaymentSubmit = async () => {
     try {
+      const generatedPaymentId = 'PAY' + Date.now() + Math.random().toString(36).substr(2, 9).toUpperCase();
+      
       const bookingPayload = {
         userId: user.id,
         mentorId: selectedMentor?.id || 'default-mentor-id',
@@ -293,7 +298,8 @@ const StudentDashboard = ({ user }) => {
         time: bookingData.time,
         topic: bookingData.topic,
         duration: bookingData.duration,
-        amount: paymentData.amount
+        amount: paymentData.amount,
+        paymentId: generatedPaymentId
       };
       
       const response = await bookingAPI.create(bookingPayload);
@@ -302,6 +308,7 @@ const StudentDashboard = ({ user }) => {
       
       setShowPaymentModal(false);
       setShowSuccessModal(true);
+      setPaymentData(prev => ({...prev, paymentId: generatedPaymentId}));
       showSuccess(`Session booked successfully! Order ID: ${response.data.orderId}`);
       
       // Refresh dashboard data
@@ -346,6 +353,65 @@ const StudentDashboard = ({ user }) => {
     showSuccess('Successfully registered for hackathon!');
   };
 
+  const handleReschedule = (booking) => {
+    setSelectedBooking(booking);
+    setBookingData({
+      date: booking.date.split('T')[0],
+      time: booking.time,
+      topic: booking.topic,
+      duration: booking.duration.toString()
+    });
+    setShowRescheduleModal(true);
+  };
+
+  const handleRescheduleSubmit = async () => {
+    if (!bookingData.date || !bookingData.time) {
+      showWarning('Please select date and time!');
+      return;
+    }
+    try {
+      await bookingAPI.updateStatus(selectedBooking.id, {
+        date: bookingData.date,
+        time: bookingData.time,
+        topic: bookingData.topic,
+        duration: parseInt(bookingData.duration)
+      });
+      setShowRescheduleModal(false);
+      showSuccess('Session rescheduled successfully!');
+      const dashboardResponse = await studentAPI.getDashboard(user.id);
+      setDashboardData(dashboardResponse.data);
+      setBookedSessions(dashboardResponse.data.user.bookings || []);
+    } catch (error) {
+      showWarning('Failed to reschedule. Please try again.');
+    }
+  };
+
+  const handleViewReceipt = (booking) => {
+    setSelectedBooking(booking);
+    setShowReceiptModal(true);
+  };
+
+  const handleDownloadReceipt = () => {
+    const printContent = document.getElementById('receipt-content');
+    const originalContent = document.body.innerHTML;
+    
+    // Add print styles
+    const printStyles = `
+      <style>
+        @media print {
+          @page { size: A4; margin: 0; }
+          body { margin: 0; padding: 20px; }
+          * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        }
+      </style>
+    `;
+    
+    document.body.innerHTML = printStyles + printContent.outerHTML;
+    window.print();
+    document.body.innerHTML = originalContent;
+    window.location.reload();
+  };
+
   const handleAnswerSelect = (questionId, answer) => {
     setAnswers(prev => ({ ...prev, [questionId]: answer }));
   };
@@ -361,14 +427,19 @@ const StudentDashboard = ({ user }) => {
   };
 
   const handleScheduleSession = () => {
-    // Set a default mentor for header booking
-    setSelectedMentor({
-      name: 'Available Mentor',
-      expertise: 'General Guidance',
-      price: 500,
-      rating: 4.8
-    });
-    setShowBookingModal(true);
+    // Check if there are any available mentors
+    const availableMentor = mentors.find(m => m.available);
+    
+    if (availableMentor) {
+      setSelectedMentor(availableMentor);
+      setShowBookingModal(true);
+    } else if (mentors.length > 0) {
+      // If no mentor is available, use the first mentor
+      setSelectedMentor(mentors[0]);
+      setShowBookingModal(true);
+    } else {
+      showWarning('No mentors available at the moment. Please try again later.');
+    }
   };
 
   const handleJoinEvent = (eventTitle) => {
@@ -580,166 +651,111 @@ const StudentDashboard = ({ user }) => {
   );
 
   const renderProfile = () => (
-    <div className="max-w-4xl">
-      <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-12">
-          <div className="flex items-center space-x-6">
-            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg">
-              <User className="text-blue-600" size={40} />
-            </div>
-            <div className="text-white">
-              <h2 className="text-3xl font-bold">{user.fullName || 'Student Name'}</h2>
-              <p className="text-blue-100 text-lg">{user.grade ? `Grade ${user.grade}` : 'Grade Not Set'}</p>
-              <p className="text-blue-100">{user.school || 'School Not Set'}</p>
+    <div className="space-y-6">
+      {/* Compact Profile Header */}
+      <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 overflow-hidden">
+        <div className="relative h-32 bg-gradient-to-r from-teal-500 via-cyan-500 to-emerald-500">
+          <div className="absolute -bottom-12 left-6">
+            <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center shadow-xl border-4 border-white">
+              <User className="text-teal-600" size={40} />
             </div>
           </div>
         </div>
         
-        <div className="p-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
-                {isEditingProfile ? (
-                  <input 
-                    type="text"
-                    value={profileData.fullName}
-                    onChange={(e) => setProfileData({...profileData, fullName: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                ) : (
-                  <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{user.fullName || 'Not provided'}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-                {isEditingProfile ? (
-                  <input 
-                    type="email"
-                    value={profileData.email}
-                    onChange={(e) => setProfileData({...profileData, email: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                ) : (
-                  <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{user.email}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
-                {isEditingProfile ? (
-                  <input 
-                    type="tel"
-                    value={profileData.phone}
-                    onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                ) : (
-                  <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{user.phone || 'Not provided'}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">City</label>
-                {isEditingProfile ? (
-                  <input 
-                    type="text"
-                    value={profileData.city}
-                    onChange={(e) => setProfileData({...profileData, city: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                ) : (
-                  <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{user.city || 'Not provided'}</p>
-                )}
+        <div className="pt-16 px-6 pb-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-2xl font-black text-gray-900">{user.fullName || 'Student Name'}</h2>
+              <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
+                <span>{user.grade ? `Grade ${user.grade}` : 'Grade Not Set'}</span>
+                <span>•</span>
+                <span>{user.city || 'Location Not Set'}</span>
               </div>
             </div>
-            
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Current Grade</label>
-                {isEditingProfile ? (
-                  <input 
-                    type="text"
-                    value={profileData.grade}
-                    onChange={(e) => setProfileData({...profileData, grade: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                ) : (
-                  <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{user.grade || 'Not set'}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">School/College</label>
-                {isEditingProfile ? (
-                  <input 
-                    type="text"
-                    value={profileData.school}
-                    onChange={(e) => setProfileData({...profileData, school: e.target.value})}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                ) : (
-                  <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{user.school || 'Not provided'}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Member Since</label>
-                <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">
-                  {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Recently joined'}
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="mt-8 flex space-x-4">
-            {isEditingProfile ? (
-              <>
-                <Button 
-                  className="bg-gradient-to-r from-teal-600 to-cyan-600"
-                  onClick={handleSaveProfile}
-                >
-                  Save Changes
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => setIsEditingProfile(false)}
-                >
-                  Cancel
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button 
-                  className="bg-gradient-to-r from-teal-600 to-cyan-600"
-                  onClick={handleEditProfile}
-                >
-                  <Edit className="mr-2" size={16} />
-                  Edit Profile
-                </Button>
-                <Button variant="outline">
-                  Change Password
-                </Button>
-              </>
+            {!isEditingProfile && (
+              <Button size="sm" className="bg-gradient-to-r from-teal-600 to-cyan-600" onClick={handleEditProfile}>
+                <Edit className="mr-2" size={14} />
+                Edit
+              </Button>
             )}
           </div>
         </div>
       </div>
-      
-      {/* Your Bookings Section */}
-      <div className="bg-white rounded-2xl shadow-lg overflow-hidden mt-8">
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6">
-          <h3 className="text-2xl font-bold text-white">Your Bookings</h3>
-          <p className="text-blue-100">Manage your mentor sessions</p>
+
+      {/* Compact Info Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 p-6">
+          <h3 className="text-lg font-black bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent mb-4">Personal Info</h3>
+          {isEditingProfile && (
+            <div className="flex gap-2 mb-4">
+              <Button size="sm" className="bg-gradient-to-r from-teal-600 to-cyan-600" onClick={handleSaveProfile}>Save</Button>
+              <Button size="sm" variant="outline" onClick={() => setIsEditingProfile(false)}>Cancel</Button>
+            </div>
+          )}
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-bold text-gray-600 mb-1 block">Email</label>
+              {isEditingProfile ? (
+                <input type="email" value={profileData.email} onChange={(e) => setProfileData({...profileData, email: e.target.value})} className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
+              ) : (
+                <p className="text-sm text-gray-900 font-medium">{user.email}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-600 mb-1 block">Phone</label>
+              {isEditingProfile ? (
+                <input type="tel" value={profileData.phone} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
+              ) : (
+                <p className="text-sm text-gray-900 font-medium">{user.phone || 'Not provided'}</p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs font-bold text-gray-600 mb-1 block">School</label>
+              {isEditingProfile ? (
+                <input type="text" value={profileData.school} onChange={(e) => setProfileData({...profileData, school: e.target.value})} className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" />
+              ) : (
+                <p className="text-sm text-gray-900 font-medium">{user.school || 'Not provided'}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 p-6">
+          <h3 className="text-lg font-black bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent mb-4">Quick Stats</h3>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center p-3 bg-teal-50 rounded-xl">
+              <p className="text-2xl font-black text-teal-600">{dashboardData?.user?.courses?.length || 0}</p>
+              <p className="text-xs text-gray-600 mt-1">Courses</p>
+            </div>
+            <div className="text-center p-3 bg-cyan-50 rounded-xl">
+              <p className="text-2xl font-black text-cyan-600">{bookedSessions.length}</p>
+              <p className="text-xs text-gray-600 mt-1">Sessions</p>
+            </div>
+            <div className="text-center p-3 bg-emerald-50 rounded-xl">
+              <p className="text-2xl font-black text-emerald-600">{dashboardData?.stats?.skillProgress || 0}%</p>
+              <p className="text-xs text-gray-600 mt-1">Progress</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Compact Bookings */}
+      <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 overflow-hidden">
+        <div className="bg-gradient-to-r from-teal-500 via-cyan-500 to-emerald-500 px-6 py-4">
+          <h3 className="text-xl font-bold text-white">Your Bookings</h3>
         </div>
         
-        <div className="p-8">
+        <div className="p-6">
           {bookedSessions.length > 0 ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {bookedSessions.map((booking) => (
-                <div key={booking.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-4">
+                <div key={booking.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-3">
                     <div>
-                      <h4 className="text-lg font-bold text-gray-900">{booking.mentor?.fullName || booking.mentorName || 'Mentor'}</h4>
-                      <p className="text-gray-600">{booking.mentor?.expertise || booking.mentorExpertise || 'General Guidance'}</p>
+                      <h4 className="font-bold text-gray-900">{booking.mentor?.fullName || 'Mentor'}</h4>
+                      <p className="text-sm text-gray-600">{booking.topic}</p>
                     </div>
-                    <span className={`px-3 py-1 text-sm rounded-full font-semibold ${
+                    <span className={`px-3 py-1 text-xs rounded-full font-semibold ${
                       booking.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' :
                       booking.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
                       booking.status === 'COMPLETED' ? 'bg-blue-100 text-blue-700' :
@@ -749,71 +765,51 @@ const StudentDashboard = ({ user }) => {
                     </span>
                   </div>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                  <div className="grid grid-cols-4 gap-2 text-xs mb-3">
                     <div>
-                      <p className="text-sm text-gray-500">Date</p>
+                      <p className="text-gray-500">Date</p>
                       <p className="font-semibold">{new Date(booking.date).toLocaleDateString()}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Time</p>
+                      <p className="text-gray-500">Time</p>
                       <p className="font-semibold">{booking.time}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Duration</p>
-                      <p className="font-semibold">{booking.duration} min</p>
+                      <p className="text-gray-500">Duration</p>
+                      <p className="font-semibold">{booking.duration}m</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500">Amount</p>
+                      <p className="text-gray-500">Amount</p>
                       <p className="font-semibold text-green-600">₹{booking.amount}</p>
                     </div>
                   </div>
                   
-                  <div className="mb-4">
-                    <p className="text-sm text-gray-500">Topic</p>
-                    <p className="font-semibold">{booking.topic}</p>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <p className="text-sm text-gray-500">Order ID</p>
-                    <p className="font-mono text-sm">{booking.orderId}</p>
-                  </div>
-                  
-                  <div className="flex space-x-3">
+                  <div className="flex gap-2">
                     {booking.status === 'CONFIRMED' && (
                       <>
-                        <Button size="sm" className="bg-gradient-to-r from-blue-600 to-blue-700">
-                          <Video className="mr-2" size={14} />
-                          Join Session
+                        <Button size="sm" className="bg-gradient-to-r from-blue-600 to-blue-700 text-xs">
+                          <Video className="mr-1" size={12} />
+                          Join
                         </Button>
-                        <Button size="sm" variant="outline">
-                          <MessageCircle className="mr-2" size={14} />
-                          Message Mentor
+                        <Button size="sm" variant="outline" className="text-xs" onClick={() => handleReschedule(booking)}>
+                          <Calendar className="mr-1" size={12} />
+                          Reschedule
                         </Button>
                       </>
                     )}
-                    {booking.status === 'COMPLETED' && (
-                      <Button size="sm" variant="outline">
-                        <Star className="mr-2" size={14} />
-                        Rate Session
-                      </Button>
-                    )}
-                    <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
-                      Cancel Booking
+                    <Button size="sm" variant="outline" className="text-xs text-teal-600" onClick={() => handleViewReceipt(booking)}>
+                      <FileText className="mr-1" size={12} />
+                      Receipt
                     </Button>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <Calendar className="mx-auto text-gray-400 mb-4" size={48} />
-              <h4 className="text-xl font-semibold text-gray-900 mb-2">No Bookings Yet</h4>
-              <p className="text-gray-600 mb-4">Book your first mentor session to get started</p>
-              <Button 
-                className="bg-gradient-to-r from-blue-600 to-purple-600"
-                onClick={handleScheduleSession}
-              >
-                <Calendar className="mr-2" size={16} />
+            <div className="text-center py-8">
+              <Calendar className="mx-auto text-gray-400 mb-3" size={40} />
+              <p className="text-gray-600 mb-3">No bookings yet</p>
+              <Button size="sm" className="bg-gradient-to-r from-teal-600 to-cyan-600" onClick={handleScheduleSession}>
                 Schedule Session
               </Button>
             </div>
@@ -1183,9 +1179,9 @@ const StudentDashboard = ({ user }) => {
           <div className="relative flex items-center justify-between">
             <div>
               <h1 className="text-5xl font-black bg-gradient-to-r from-teal-600 via-cyan-600 to-emerald-600 bg-clip-text text-transparent mb-3">
-                Dashboard
+                Your Career Adventure Starts Here 🚀
               </h1>
-              <p className="text-gray-700 text-xl font-medium">Ready to level up your skills today? 🚀</p>
+              <p className="text-gray-700 text-xl font-medium">Your career journey begins now 🌟</p>
             </div>
             <div className="flex space-x-4">
               <Button 
@@ -1197,7 +1193,7 @@ const StudentDashboard = ({ user }) => {
               </Button>
               <Button 
                 className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 px-8 py-4 text-lg font-bold whitespace-nowrap"
-                onClick={() => showInfo('AI Mentor chat opened!')}
+                onClick={() => setShowAIChatModal(true)}
               >
                 <Brain className="mr-3" size={20} />
                 Ask AI Mentor
@@ -1695,6 +1691,251 @@ const StudentDashboard = ({ user }) => {
                   Register Now
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* AI Chat Modal */}
+      {showAIChatModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 w-full max-w-2xl h-[600px] flex flex-col">
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-white rounded-t-3xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                  <Brain size={24} />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold">AI Career Mentor</h3>
+                  <p className="text-purple-100">Get personalized career guidance</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowAIChatModal(false)}
+                className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+              <div className="space-y-4">
+                <div className="flex justify-start">
+                  <div className="max-w-[80%] p-4 rounded-2xl bg-white shadow-md">
+                    <p className="text-gray-800">👋 Hi! I'm your AI Career Mentor. I can help you with:</p>
+                    <ul className="mt-2 space-y-1 text-sm text-gray-700">
+                      <li>• Career path recommendations</li>
+                      <li>• Skill development guidance</li>
+                      <li>• Course suggestions</li>
+                      <li>• Interview preparation tips</li>
+                    </ul>
+                    <p className="mt-3 text-gray-800">What would you like to know?</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-4 border-t border-gray-200 bg-white rounded-b-3xl">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Ask me anything about your career..."
+                  className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500"
+                />
+                <button className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all">
+                  <MessageCircle size={20} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Reschedule Modal */}
+      {showRescheduleModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 w-full max-w-md">
+            <div className="bg-gradient-to-r from-orange-600 to-red-600 p-6 text-white rounded-t-3xl">
+              <button 
+                onClick={() => setShowRescheduleModal(false)}
+                className="absolute top-4 right-4 text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+              >
+                <X size={20} />
+              </button>
+              <h3 className="text-2xl font-bold mb-2">Reschedule Session</h3>
+              <p className="text-orange-100">Choose a new date and time</p>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="bg-orange-50 rounded-xl p-4 mb-4">
+                <h4 className="font-semibold text-gray-900 mb-2">Current Booking</h4>
+                <div className="text-sm space-y-1">
+                  <p><span className="text-gray-600">Mentor:</span> <span className="font-medium">{selectedBooking?.mentor?.fullName || 'Mentor'}</span></p>
+                  <p><span className="text-gray-600">Topic:</span> <span className="font-medium">{selectedBooking?.topic}</span></p>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">New Date *</label>
+                <input 
+                  type="date"
+                  value={bookingData.date}
+                  onChange={(e) => setBookingData({...bookingData, date: e.target.value})}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">New Time *</label>
+                <select 
+                  value={bookingData.time}
+                  onChange={(e) => setBookingData({...bookingData, time: e.target.value})}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  <option value="">Choose time slot</option>
+                  <option value="09:00">09:00 AM</option>
+                  <option value="10:00">10:00 AM</option>
+                  <option value="11:00">11:00 AM</option>
+                  <option value="14:00">02:00 PM</option>
+                  <option value="15:00">03:00 PM</option>
+                  <option value="16:00">04:00 PM</option>
+                  <option value="17:00">05:00 PM</option>
+                  <option value="18:00">06:00 PM</option>
+                </select>
+              </div>
+              
+              <div className="flex space-x-3 pt-4">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => setShowRescheduleModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  className="flex-1 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
+                  onClick={handleRescheduleSubmit}
+                >
+                  Reschedule
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Receipt Modal */}
+      {showReceiptModal && selectedBooking && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-teal-600 to-cyan-600 p-6 text-white rounded-t-3xl flex items-center justify-between">
+              <h3 className="text-2xl font-bold">Payment Receipt</h3>
+              <button onClick={() => setShowReceiptModal(false)} className="text-white hover:bg-white/20 rounded-full p-2 transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-8" id="receipt-content" style={{maxWidth: '800px', margin: '0 auto'}}>
+              {/* Receipt Header */}
+              <div className="text-center mb-8 border-b-2 border-gray-200 pb-6">
+                <h1 className="text-3xl font-black bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent mb-2">PathFinder AI</h1>
+                <p className="text-gray-600">Career Guidance & Mentorship Platform</p>
+                <p className="text-sm text-gray-500 mt-2">Receipt #{selectedBooking.orderId}</p>
+              </div>
+              
+              {/* Booking Details */}
+              <div className="grid grid-cols-2 gap-6 mb-6">
+                <div>
+                  <h4 className="text-sm font-bold text-gray-600 mb-3">STUDENT DETAILS</h4>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="text-gray-600">Name:</span> <span className="font-semibold">{user.fullName}</span></p>
+                    <p><span className="text-gray-600">Email:</span> <span className="font-semibold">{user.email}</span></p>
+                    <p><span className="text-gray-600">Phone:</span> <span className="font-semibold">{user.phone || 'N/A'}</span></p>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="text-sm font-bold text-gray-600 mb-3">MENTOR DETAILS</h4>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="text-gray-600">Name:</span> <span className="font-semibold">{selectedBooking.mentor?.fullName || 'Mentor'}</span></p>
+                    <p><span className="text-gray-600">Expertise:</span> <span className="font-semibold">{selectedBooking.mentor?.expertise?.[0] || 'General Guidance'}</span></p>
+                    <p><span className="text-gray-600">Company:</span> <span className="font-semibold">{selectedBooking.mentor?.company || 'N/A'}</span></p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Session Details */}
+              <div className="bg-gray-50 rounded-xl p-6 mb-6">
+                <h4 className="text-sm font-bold text-gray-600 mb-4">SESSION DETAILS</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-600">Date</p>
+                    <p className="font-semibold">{new Date(selectedBooking.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Time</p>
+                    <p className="font-semibold">{selectedBooking.time}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Duration</p>
+                    <p className="font-semibold">{selectedBooking.duration} minutes</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Status</p>
+                    <p className="font-semibold text-green-600">{selectedBooking.status}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-gray-600">Topic</p>
+                    <p className="font-semibold">{selectedBooking.topic}</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Payment Details */}
+              <div className="border-t-2 border-gray-200 pt-6 mb-6">
+                <h4 className="text-sm font-bold text-gray-600 mb-4">PAYMENT DETAILS</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Order ID:</span>
+                    <span className="font-mono font-semibold">{selectedBooking.orderId}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Payment ID:</span>
+                    <span className="font-mono font-semibold">{selectedBooking.paymentId || `PAY${selectedBooking.orderId.slice(3)}`}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Payment Date:</span>
+                    <span className="font-semibold">{new Date(selectedBooking.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Payment Method:</span>
+                    <span className="font-semibold">Online Payment</span>
+                  </div>
+                  <div className="flex justify-between pt-3 border-t border-gray-200">
+                    <span className="text-gray-600">Session Fee:</span>
+                    <span className="font-semibold">₹{selectedBooking.amount}</span>
+                  </div>
+                  <div className="flex justify-between text-lg font-bold bg-teal-50 p-3 rounded-lg">
+                    <span className="text-teal-700">Total Amount Paid:</span>
+                    <span className="text-teal-700">₹{selectedBooking.amount}</span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Footer */}
+              <div className="text-center text-xs text-gray-500 border-t pt-4">
+                <p>Thank you for choosing PathFinder AI!</p>
+                <p className="mt-1">For any queries, contact us at support@pathfinder.ai</p>
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-gray-200 flex gap-3 print:hidden">
+              <Button variant="outline" className="flex-1" onClick={() => setShowReceiptModal(false)}>Close</Button>
+              <Button className="flex-1 bg-gradient-to-r from-teal-600 to-cyan-600" onClick={handleDownloadReceipt}>
+                <FileText className="mr-2" size={16} />
+                Download PDF
+              </Button>
             </div>
           </div>
         </div>

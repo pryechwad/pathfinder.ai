@@ -300,7 +300,7 @@ AI-powered algorithm matches students with mentors based on:
 3. Configure environment variables
 4. Set up custom domain (optional)
 
-## Troubleshooting
+
 
 ### Common Issues
 
