@@ -8,6 +8,10 @@ const mentorRoutes = require('./routes/mentorRoutes');
 const courseRoutes = require('./routes/courseRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const otherRoutes = require('./routes/otherRoutes');
+const forumRoutes = require('./routes/forumRoutes');
+const studyGroupRoutes = require('./routes/studyGroupRoutes');
+const successStoryRoutes = require('./routes/successStoryRoutes');
+const referralRoutes = require('./routes/referralRoutes');
 const prisma = require('./config/database');
 
 const app = express();
@@ -23,6 +27,10 @@ app.use('/api/student', studentRoutes);
 app.use('/api/mentors', mentorRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/forum', forumRoutes);
+app.use('/api/study-groups', studyGroupRoutes);
+app.use('/api/success-stories', successStoryRoutes);
+app.use('/api/referrals', referralRoutes);
 app.use('/api', otherRoutes);
 
 // Health Check

@@ -17,6 +17,10 @@ PathFinder AI is a comprehensive career development platform that combines AI-dr
 - **Real-World Projects**: Build portfolio-worthy projects that showcase your skills
 - **Career Dashboard**: Track your progress, goals, and achievements in one place
 - **Hackathon Opportunities**: Participate in coding competitions and challenges
+- **Community Forum**: Engage in discussions across 8 career domains with upvoting and Q&A
+- **Study Groups**: Create or join collaborative learning spaces with video meeting integration
+- **Success Stories**: Read inspiring alumni journeys and share your own success story
+- **Referral Rewards**: Earn 100 points per referral, redeem for discounts (1 point = ₹1)
 
 ### For Mentors
 - **Profile Management**: Showcase your expertise, experience, and achievements
@@ -178,6 +182,15 @@ npm run preview
 - **Activity**: User activity tracking
 - **Hackathon**: Coding competitions and events
 - **Contact**: Contact form submissions
+- **ForumCategory**: Discussion categories
+- **ForumPost**: Community forum posts
+- **ForumComment**: Post comments
+- **ForumVote**: Upvotes and downvotes
+- **StudyGroup**: Collaborative study groups
+- **StudyGroupMember**: Group memberships
+- **SuccessStory**: Alumni testimonials
+- **Referral**: Referral tracking
+- **PointsHistory**: Points transactions
 
 ## API Endpoints
 
@@ -212,7 +225,99 @@ npm run preview
 - `GET /api/hackathons` - Get hackathon listings
 - `POST /api/contact` - Submit contact form
 
-## Features in Detail
+### Community Forum
+- `GET /api/forum/categories` - Get all forum categories
+- `GET /api/forum/posts` - Get forum posts
+- `GET /api/forum/posts/:id` - Get single post with comments
+- `POST /api/forum/posts` - Create new post
+- `POST /api/forum/comments` - Add comment
+- `POST /api/forum/votes` - Vote on post
+
+### Study Groups
+- `GET /api/study-groups` - Get all public groups
+- `GET /api/study-groups/my-groups` - Get user's groups
+- `POST /api/study-groups` - Create study group
+- `POST /api/study-groups/:id/join` - Join group
+- `DELETE /api/study-groups/:id/leave` - Leave group
+
+### Success Stories
+- `GET /api/success-stories` - Get all approved stories
+- `GET /api/success-stories/my-stories` - Get user's stories
+- `GET /api/success-stories/:id` - Get single story
+- `POST /api/success-stories` - Create story
+- `POST /api/success-stories/:id/like` - Like story
+
+### Referrals & Rewards
+- `GET /api/referrals/stats` - Get referral statistics
+- `POST /api/referrals/apply` - Apply referral code
+- `POST /api/referrals/complete` - Complete referral
+- `GET /api/referrals/points-history` - Get points history
+- `POST /api/referrals/redeem` - Redeem points for discount
+
+## Community Features
+
+### Community Forum
+Engage with fellow students across 8 career domains:
+- Data Science & AI
+- Engineering
+- Medical & Healthcare
+- Business & Management
+- Creative Arts
+- Law & Civil Services
+- Career Guidance
+- Study Tips
+
+Features:
+- Create posts with tags
+- Upvote/downvote system
+- Comment and reply
+- Search functionality
+- Earn 5 points per post
+
+### Study Groups
+Collaborative learning spaces:
+- Create public or private groups
+- Video meeting integration
+- Member roles (Admin, Moderator, Member)
+- Category-based organization
+- Maximum member limits
+- Earn 10 points for creating a group
+
+### Success Stories
+Alumni network and testimonials:
+- Share your career journey
+- Read inspiring success stories
+- Filter by career path
+- Featured stories section
+- Like and view tracking
+
+### Referral & Rewards System
+Earn points and get discounts:
+- **100 points** per successful referral
+- **20 points** for course completion
+- **5 points** for forum posts
+- **10 points** for creating study groups
+- **1 point = ₹1 discount** on purchases
+- Redeem points on mentor sessions, courses, and more
+- Track points history
+- Receipts show points discount
+
+## Quick Setup for Community Features
+
+Run the setup script:
+```bash
+setup-community.bat
+```
+
+Or manually:
+```bash
+cd backend
+npm run db:generate
+npm run db:push
+node prisma/seedCommunity.js
+```
+
+For detailed setup instructions, see [COMMUNITY_FEATURES_GUIDE.md](COMMUNITY_FEATURES_GUIDE.md)
 
 ### Career Command Center
 Search any career role or track multi-month growth with the 12-month odyssey track. Popular career paths include:

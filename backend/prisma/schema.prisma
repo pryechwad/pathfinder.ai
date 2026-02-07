@@ -16,6 +16,9 @@ model User {
   grade     String?
   school    String?
   role      Role     @default(STUDENT)
+  points    Int      @default(0)
+  referralCode String? @unique
+  referredBy   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -23,6 +26,14 @@ model User {
   courses   CourseEnrollment[]
   careerGoals CareerGoal[]
   activities Activity[]
+  forumPosts ForumPost[]
+  forumComments ForumComment[]
+  forumVotes ForumVote[]
+  studyGroups StudyGroupMember[]
+  createdGroups StudyGroup[]
+  successStories SuccessStory[]
+  referrals Referral[] @relation("ReferredUsers")
+  pointsHistory PointsHistory[]
   
   @@map("users")
 }
@@ -184,4 +195,180 @@ enum BookingStatus {
   CONFIRMED
   COMPLETED
   CANCELLED
+}
+
+// Community Forum Models
+model ForumCategory {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String?
+  icon        String?
+  color       String      @default("blue")
+  postsCount  Int         @default(0)
+  createdAt   DateTime    @default(now())
+  
+  posts       ForumPost[]
+  
+  @@map("forum_categories")
+}
+
+model ForumPost {
+  id          String         @id @default(cuid())
+  userId      String
+  categoryId  String
+  title       String
+  content     String
+  tags        String[]
+  views       Int            @default(0)
+  isPinned    Boolean        @default(false)
+  isSolved    Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    ForumCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  comments    ForumComment[]
+  votes       ForumVote[]
+  
+  @@map("forum_posts")
+}
+
+model ForumComment {
+  id          String    @id @default(cuid())
+  postId      String
+  userId      String
+  content     String
+  isAnswer    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  post        ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("forum_comments")
+}
+
+model ForumVote {
+  id        String    @id @default(cuid())
+  postId    String
+  userId    String
+  voteType  VoteType
+  createdAt DateTime  @default(now())
+  
+  post      ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([postId, userId])
+  @@map("forum_votes")
+}
+
+// Study Groups Models
+model StudyGroup {
+  id          String            @id @default(cuid())
+  name        String
+  description String
+  category    String
+  creatorId   String
+  maxMembers  Int               @default(50)
+  isPrivate   Boolean           @default(false)
+  meetingLink String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  
+  creator     User              @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  members     StudyGroupMember[]
+  
+  @@map("study_groups")
+}
+
+model StudyGroupMember {
+  id        String     @id @default(cuid())
+  groupId   String
+  userId    String
+  role      GroupRole  @default(MEMBER)
+  joinedAt  DateTime   @default(now())
+  
+  group     StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([groupId, userId])
+  @@map("study_group_members")
+}
+
+// Success Stories Models
+model SuccessStory {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  content     String
+  careerPath  String
+  company     String?
+  position    String?
+  image       String?
+  isApproved  Boolean  @default(false)
+  isFeatured  Boolean  @default(false)
+  likes       Int      @default(0)
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("success_stories")
+}
+
+// Referral System Models
+model Referral {
+  id          String   @id @default(cuid())
+  referrerId  String
+  referredId  String
+  status      ReferralStatus @default(PENDING)
+  pointsAwarded Int    @default(0)
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+  
+  referrer    User     @relation("ReferredUsers", fields: [referrerId], references: [id], onDelete: Cascade)
+  
+  @@unique([referrerId, referredId])
+  @@map("referrals")
+}
+
+model PointsHistory {
+  id          String      @id @default(cuid())
+  userId      String
+  points      Int
+  type        PointsType
+  description String
+  reference   String?
+  createdAt   DateTime    @default(now())
+  
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("points_history")
+}
+
+enum VoteType {
+  UPVOTE
+  DOWNVOTE
+}
+
+enum GroupRole {
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum ReferralStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+}
+
+enum PointsType {
+  REFERRAL
+  COURSE_COMPLETION
+  FORUM_POST
+  STUDY_GROUP
+  PURCHASE
+  REWARD
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BookOpen, FileText, Trophy, Users as UsersIcon } from 'lucide-react';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import StudentDashboard from '../components/dashboard/StudentDashboard';
@@ -11,7 +11,13 @@ import MonthlyAssessment from './MonthlyAssessment';
 import AptitudeModules from './AptitudeModules';
 
 const Dashboard = ({ user, onLogout }) => {
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState(() => {
+    return sessionStorage.getItem('currentPage') || 'dashboard';
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('currentPage', currentPage);
+  }, [currentPage]);
 
   const handleNavigation = (pageId) => {
     setCurrentPage(pageId);

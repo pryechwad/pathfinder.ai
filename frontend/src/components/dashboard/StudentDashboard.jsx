@@ -3,12 +3,16 @@ import {
   BookOpen, Target, TrendingUp, Users, Award, Calendar, 
   User, Trophy, Code, Briefcase, Clock, Star, ChevronRight,
   Play, FileText, MessageCircle, Zap, Brain, Globe, Rocket,
-  CheckCircle, ArrowRight, Video, Coffee, Medal, X, Edit, Search
+  CheckCircle, ArrowRight, Video, Coffee, Medal, X, Edit, Search, Gift
 } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import { useToast } from '../../contexts/ToastContext';
 import { studentAPI, bookingAPI, mentorAPI } from '../../utils/api';
+import ReferralRewards from './ReferralRewards';
+import CommunityForum from '../../pages/CommunityForum';
+import StudyGroups from '../../pages/StudyGroups';
+import SuccessStories from '../../pages/SuccessStories';
 
 const StudentDashboard = ({ user }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -1155,6 +1159,10 @@ const StudentDashboard = ({ user }) => {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: TrendingUp },
     { id: 'profile', label: 'Profile', icon: User },
+    { id: 'rewards', label: 'Rewards', icon: Gift },
+    { id: 'community', label: 'Community', icon: MessageCircle },
+    { id: 'groups', label: 'Study Groups', icon: Users },
+    { id: 'stories', label: 'Success Stories', icon: Award },
     { id: 'hackathons', label: 'Events', icon: Trophy },
     { id: 'mentors', label: 'Mentors', icon: Users },
     { id: 'practice', label: 'Practice', icon: Code },
@@ -1227,6 +1235,10 @@ const StudentDashboard = ({ user }) => {
         <div className="animate-fade-in">
           {activeTab === 'overview' && renderOverview()}
           {activeTab === 'profile' && renderProfile()}
+          {activeTab === 'rewards' && <ReferralRewards />}
+          {activeTab === 'community' && <CommunityForum />}
+          {activeTab === 'groups' && <StudyGroups />}
+          {activeTab === 'stories' && <SuccessStories />}
           {activeTab === 'hackathons' && renderHackathons()}
           {activeTab === 'mentors' && renderMentors()}
           {activeTab === 'practice' && renderPractice()}
