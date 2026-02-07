@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Gift, Copy, Users, TrendingUp, Award, ShoppingCart, Zap, Star, DollarSign, CheckCircle } from 'lucide-react';
+import { Gift, Copy, Users, TrendingUp, Award, ShoppingCart, Zap, Star, DollarSign, CheckCircle, Share2 } from 'lucide-react';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -51,6 +51,31 @@ export default function ReferralRewards() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const shareReferral = () => {
+    const shareText = `🎓 Hey! I'm on PathFinder AI - India's leading AI-powered career guidance platform!
+
+✨ Join me and get 10 points on signup!
+
+Use my referral code: ${stats.referralCode}
+
+🚀 Features:
+• AI Career Guidance
+• Expert Mentorship
+• 500+ Courses
+• Study Groups
+• Hackathons
+
+💰 Earn 100 points when you refer friends!
+
+🔗 Sign up now: ${window.location.origin}
+
+#PathFinderAI #CareerGuidance #AIEducation`;
+    
+    navigator.clipboard.writeText(shareText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleRedeem = async () => {
@@ -134,6 +159,13 @@ export default function ReferralRewards() {
               {copied ? <CheckCircle size={20} /> : <Copy size={20} />}
               {copied ? 'Copied' : 'Copy'}
             </button>
+            <button
+              onClick={shareReferral}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
+            >
+              <Share2 size={20} />
+              Share
+            </button>
           </div>
         </div>
 
@@ -194,6 +226,15 @@ export default function ReferralRewards() {
       <div className="bg-white rounded-xl shadow-lg p-6">
         <h3 className="text-xl font-bold text-gray-900 mb-4">Ways to Earn Points</h3>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="border border-gray-200 rounded-lg p-4 hover:border-blue-500 transition">
+            <div className="flex items-center justify-between mb-2">
+              <Users className="text-blue-600" size={24} />
+              <span className="text-2xl font-bold text-blue-600">10</span>
+            </div>
+            <p className="font-semibold text-gray-900">Sign Up Bonus</p>
+            <p className="text-sm text-gray-600">Join with referral code</p>
+          </div>
+
           <div className="border border-gray-200 rounded-lg p-4 hover:border-blue-500 transition">
             <div className="flex items-center justify-between mb-2">
               <Users className="text-blue-600" size={24} />
