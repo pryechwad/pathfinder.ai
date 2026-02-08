@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 // Create axios instance
 const api = axios.create({
@@ -18,6 +18,23 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Add response interceptor for better error handling
+api.igitnterceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (!error.response) {
+      // Network error
+      error.message = 'Network error. Please check your internet connection.';
+    } else if (error.response.status === 401) {
+      // Unauthorized
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('mentor');
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Auth API
 export const authAPI = {
