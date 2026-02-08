@@ -25,12 +25,18 @@ api.interceptors.response.use(
   (error) => {
     if (!error.response) {
       // Network error
-      error.message = 'Network error. Please check your internet connection.';
+      console.error('Network Error:', error.message);
+      error.message = 'Cannot connect to server. Please check if backend is running.';
     } else if (error.response.status === 401) {
       // Unauthorized
+      console.error('Unauthorized access');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('mentor');
+    } else if (error.response.status >= 500) {
+      console.error('Server Error:', error.response.data);
+    } else {
+      console.error('API Error:', error.response.data);
     }
     return Promise.reject(error);
   }

@@ -41,7 +41,8 @@ exports.studentSignup = async (req, res) => {
       } 
     });
   } catch (error) {
-    res.status(500).json({ error: 'Signup failed' });
+    console.error('Student signup error:', error);
+    res.status(500).json({ error: error.message || 'Signup failed' });
   }
 };
 
@@ -49,6 +50,10 @@ exports.studentSignup = async (req, res) => {
 exports.studentLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
     
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
@@ -72,7 +77,8 @@ exports.studentLogin = async (req, res) => {
       } 
     });
   } catch (error) {
-    res.status(500).json({ error: 'Login failed' });
+    console.error('Student login error:', error);
+    res.status(500).json({ error: error.message || 'Login failed' });
   }
 };
 
@@ -118,7 +124,8 @@ exports.mentorSignup = async (req, res) => {
       } 
     });
   } catch (error) {
-    res.status(500).json({ error: 'Mentor signup failed' });
+    console.error('Mentor signup error:', error);
+    res.status(500).json({ error: error.message || 'Mentor signup failed' });
   }
 };
 
@@ -126,6 +133,10 @@ exports.mentorSignup = async (req, res) => {
 exports.mentorLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
     
     const mentor = await prisma.mentor.findUnique({ where: { email } });
     if (!mentor) {
@@ -149,6 +160,7 @@ exports.mentorLogin = async (req, res) => {
       } 
     });
   } catch (error) {
-    res.status(500).json({ error: 'Login failed' });
+    console.error('Mentor login error:', error);
+    res.status(500).json({ error: error.message || 'Login failed' });
   }
 };
