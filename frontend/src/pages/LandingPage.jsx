@@ -387,45 +387,41 @@ const LandingPage = ({ onRoleSelect }) => {
               <p className="text-xl text-gray-700">Real students, real transformations</p>
             </div>
 
-            <div className="relative overflow-hidden">
-              <div className="flex transition-transform duration-700 ease-in-out" style={{ transform: `translateX(-${currentStory * 100}%)` }}>
-                {successStories.map((story, index) => (
-                  <div key={index} className="w-full flex-shrink-0 px-4">
-                    <div className="max-w-3xl mx-auto bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 p-8">
-                      <div className="flex items-center space-x-4 mb-6">
-                        <div className="w-16 h-16 bg-gradient-to-r from-teal-600 to-cyan-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                          {story.image}
-                        </div>
-                        <div>
-                          <h4 className="text-lg font-bold text-gray-900">{story.name}</h4>
-                          <p className="text-gray-600">{story.role}</p>
-                        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+              {successStories.map((story, index) => (
+                <div key={index} className="group relative overflow-hidden rounded-3xl bg-white/90 backdrop-blur-xl border border-white/50 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-3 hover:scale-105">
+                  <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 via-cyan-500/5 to-emerald-500/5 group-hover:from-teal-500/10 group-hover:via-cyan-500/10 group-hover:to-emerald-500/10 transition-all duration-300"></div>
+                  <div className="relative p-8">
+                    <div className="flex items-center space-x-4 mb-6">
+                      <div className="w-16 h-16 bg-gradient-to-r from-teal-600 to-cyan-600 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                        {story.image}
                       </div>
-                      <p className="text-gray-700 mb-4 leading-relaxed text-lg">"{story.story}"</p>
-                      <div className="flex space-x-1">
-                        {[...Array(story.rating)].map((_, i) => (
-                          <Star key={i} className="text-yellow-500" size={20} fill="currentColor" />
-                        ))}
+                      <div className="flex-1">
+                        <h4 className="text-lg font-bold text-gray-900">{story.name}</h4>
+                        <p className="text-sm text-gray-600">{story.role}</p>
                       </div>
                     </div>
+                    <div className="mb-6">
+                      <p className="text-gray-700 leading-relaxed italic">{story.story}</p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex space-x-1">
+                        {[...Array(story.rating)].map((_, i) => (
+                          <Star key={i} className="text-yellow-500" size={18} fill="currentColor" />
+                        ))}
+                      </div>
+                      <span className="text-xs font-semibold text-teal-600 bg-teal-50 px-3 py-1 rounded-full">Verified</span>
+                    </div>
+                    <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500 via-cyan-500 to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   </div>
-                ))}
-              </div>
-              
-              {/* Dots Indicator */}
-              <div className="flex justify-center space-x-2 mt-8">
-                {successStories.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentStory(index)}
-                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                      currentStory === index 
-                        ? 'bg-teal-600 w-8' 
-                        : 'bg-gray-300 hover:bg-gray-400'
-                    }`}
-                  />
-                ))}
-              </div>
+                </div>
+              ))}
+            </div>
+            <div className="text-center">
+              <Button className="bg-gradient-to-r from-teal-500 via-cyan-500 to-emerald-500 hover:from-teal-600 hover:via-cyan-600 hover:to-emerald-600 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 px-8 py-4 text-lg font-bold">
+                View All Success Stories
+                <ArrowRight className="ml-2" size={20} />
+              </Button>
             </div>
           </div>
         </section>

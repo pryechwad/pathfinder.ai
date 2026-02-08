@@ -72,7 +72,7 @@ pathfinder.ai/
 │   ├── prisma/              # Database schema and migrations
 │   └── utils/               # Utility functions
 │
-└── docs/                    # Documentation files
+
 ```
 
 ## Prerequisites
