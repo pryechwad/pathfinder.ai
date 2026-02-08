@@ -20,7 +20,7 @@ api.interceptors.request.use((config) => {
 });
 
 // Add response interceptor for better error handling
-api.igitnterceptors.response.use(
+api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (!error.response) {
