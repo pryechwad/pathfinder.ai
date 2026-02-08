@@ -471,8 +471,27 @@ const StudentDashboard = ({ user }) => {
     <div className="space-y-8">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <div key={index} className="group relative overflow-hidden rounded-3xl bg-white/90 backdrop-blur-xl border border-white/50 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 hover:scale-105">
+        {stats.map((stat, index) => {
+          const handleStatClick = () => {
+            if (stat.label === 'Courses Completed') {
+              setActiveTab('profile');
+              showInfo('View your enrolled courses in the Profile section');
+            } else if (stat.label === 'Career Goals') {
+              handleStartAssessment();
+            } else if (stat.label === 'Skill Progress') {
+              setActiveTab('tracking');
+            } else if (stat.label === 'Mentor Sessions') {
+              setActiveTab('profile');
+              showInfo('View your mentor sessions in the Profile section');
+            }
+          };
+          
+          return (
+          <button 
+            key={index} 
+            onClick={handleStatClick}
+            className="group relative overflow-hidden rounded-3xl bg-white/90 backdrop-blur-xl border border-white/50 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 hover:scale-105 cursor-pointer text-left w-full"
+          >
             <div className={`absolute inset-0 ${stat.bg} opacity-5 group-hover:opacity-10 transition-opacity duration-300`}></div>
             <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-white/20 to-transparent rounded-full -translate-y-16 translate-x-16"></div>
             <div className="relative p-8">
@@ -487,9 +506,12 @@ const StudentDashboard = ({ user }) => {
               <h3 className="text-4xl font-black text-gray-900 mb-2">{stat.value}</h3>
               <p className="text-gray-700 text-sm font-semibold">{stat.label}</p>
               <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-teal-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <ChevronRight className="text-teal-600" size={20} />
+              </div>
             </div>
-          </div>
-        ))}
+          </button>
+        )})}
       </div>
 
       {/* Main Content Grid */}
