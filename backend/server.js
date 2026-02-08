@@ -21,6 +21,27 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Root Route
+app.get('/', (req, res) => {
+  res.json({
+    message: 'PathFinder AI API',
+    version: '1.0.0',
+    status: 'Running',
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth',
+      students: '/api/student',
+      mentors: '/api/mentors',
+      courses: '/api/courses',
+      bookings: '/api/bookings',
+      forum: '/api/forum',
+      studyGroups: '/api/study-groups',
+      successStories: '/api/success-stories',
+      referrals: '/api/referrals'
+    }
+  });
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/student', studentRoutes);
@@ -50,6 +71,15 @@ app.get('/api/health', async (req, res) => {
       error: error.message 
     });
   }
+});
+
+// 404 Handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    error: 'Route not found',
+    message: `Cannot ${req.method} ${req.originalUrl}`,
+    availableEndpoints: '/api/health'
+  });
 });
 
 // Start Server
