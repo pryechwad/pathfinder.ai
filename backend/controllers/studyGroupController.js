@@ -50,9 +50,9 @@ exports.createStudyGroup = async (req, res) => {
         name,
         description,
         category,
-        maxMembers: maxMembers || 50,
-        isPrivate: isPrivate || false,
-        meetingLink,
+        maxMembers: parseInt(maxMembers) || 50,
+        isPrivate: isPrivate === true || isPrivate === 'true',
+        meetingLink: meetingLink || null,
         creatorId: userId
       },
       include: {
@@ -87,7 +87,8 @@ exports.createStudyGroup = async (req, res) => {
 
     res.status(201).json(group);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Create group error:', error);
+    res.status(500).json({ error: error.message, details: error.toString() });
   }
 };
 
