@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Heart, Eye, Briefcase, Plus, TrendingUp } from 'lucide-react';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import { supabase } from '../lib/supabase';
 
 export default function SuccessStories() {
   const [stories, setStories] = useState([]);
@@ -23,10 +21,26 @@ export default function SuccessStories() {
 
   const fetchStories = async () => {
     try {
-      const params = {};
-      if (selectedCareer) params.careerPath = selectedCareer;
-      const response = await axios.get(`${API_URL}/success-stories`, { params });
-      setStories(response.data);
+      let query = supabase
+        .from('success_stories')
+        .select(`
+          *,
+          user:users(full_name, city)
+        `)
+        .eq('is_approved', true);
+
+      if (selectedCareer) {
+        query = query.eq('career_path', selectedCareer);
+      }
+
+      const { data } = await query.order('created_at', { ascending: false });
+      
+      setStories(data?.map(s => ({
+        ...s,
+        careerPath: s.career_path,
+        isFeatured: s.is_featured,
+        user: { fullName: s.user?.full_name, city: s.user?.city }
+      })) || []);
     } catch (error) {
       console.error('Error fetching stories:', error);
     }
@@ -35,10 +49,20 @@ export default function SuccessStories() {
   const handleCreateStory = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`${API_URL}/success-stories`, newStory, {
-        headers: { Authorization: `Bearer ${token}` }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from('success_stories').insert({
+        user_id: user.id,
+        title: newStory.title,
+        content: newStory.content,
+        career_path: newStory.careerPath,
+        company: newStory.company,
+        position: newStory.position,
+        image: newStory.image,
+        is_approved: false
       });
+
       setShowCreateStory(false);
       setNewStory({ title: '', content: '', careerPath: '', company: '', position: '', image: '' });
       alert('Your story has been submitted for review!');
@@ -49,7 +73,17 @@ export default function SuccessStories() {
 
   const handleLike = async (storyId) => {
     try {
-      await axios.post(`${API_URL}/success-stories/${storyId}/like`);
+      const { data: story } = await supabase
+        .from('success_stories')
+        .select('likes')
+        .eq('id', storyId)
+        .single();
+
+      await supabase
+        .from('success_stories')
+        .update({ likes: (story?.likes || 0) + 1 })
+        .eq('id', storyId);
+
       fetchStories();
     } catch (error) {
       console.error('Error liking story:', error);
