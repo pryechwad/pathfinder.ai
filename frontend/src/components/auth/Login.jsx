@@ -9,6 +9,8 @@ import { useToast } from '../../contexts/ToastContext';
 const Login = ({ onLogin, role, onBack }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
   const { showSuccess, showError } = useToast();
   const [formData, setFormData] = useState({
     email: '',
@@ -68,6 +70,30 @@ const Login = ({ onLogin, role, onBack }) => {
     return newErrors;
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!resetEmail) {
+      showError('Please enter your email address');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+      
+      if (error) throw error;
+      showSuccess('Password reset email sent! Check your inbox.');
+      setShowForgotPassword(false);
+      setResetEmail('');
+    } catch (error) {
+      showError(error.message || 'Failed to send reset email');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = validateForm();
@@ -91,17 +117,17 @@ const Login = ({ onLogin, role, onBack }) => {
                 city: formData.city,
                 grade: formData.grade,
                 school: formData.school
-              }
+              },
+              emailRedirectTo: `${window.location.origin}/login`
             }
           });
           
           if (error) throw error;
           console.log('Signup successful:', data);
-          showSuccess('Account created successfully! Please check your email.');
+          showSuccess('Account created! Please check your email to verify your account.');
           
-          if (data.user) {
-            onLogin({ ...data.user, userType: 'student' });
-          }
+          // Don't auto-login, wait for email verification
+          setIsSignUp(false);
         } else {
           // Sign in with Supabase
           const { data, error } = await supabase.auth.signInWithPassword({
@@ -110,6 +136,14 @@ const Login = ({ onLogin, role, onBack }) => {
           });
           
           if (error) throw error;
+          
+          // Check if email is verified
+          if (data.user && !data.user.email_confirmed_at) {
+            showError('Please verify your email before logging in. Check your inbox.');
+            setLoading(false);
+            return;
+          }
+          
           console.log('Login successful:', data);
           showSuccess('Welcome back!');
           
@@ -118,7 +152,7 @@ const Login = ({ onLogin, role, onBack }) => {
           }
         }
       } else {
-        // Mentor flow - for now using same auth, can be customized later
+        // Mentor flow
         if (isSignUp) {
           const { data, error } = await supabase.auth.signUp({
             email: formData.email,
@@ -132,17 +166,17 @@ const Login = ({ onLogin, role, onBack }) => {
                 location: formData.location,
                 bio: formData.bio,
                 role: 'MENTOR'
-              }
+              },
+              emailRedirectTo: `${window.location.origin}/login`
             }
           });
           
           if (error) throw error;
           console.log('Mentor signup successful:', data);
-          showSuccess('Mentor account created successfully!');
+          showSuccess('Account created! Please check your email to verify your account.');
           
-          if (data.user) {
-            onLogin({ ...data.user, userType: 'mentor' });
-          }
+          // Don't auto-login, wait for email verification
+          setIsSignUp(false);
         } else {
           const { data, error } = await supabase.auth.signInWithPassword({
             email: formData.email,
@@ -150,6 +184,14 @@ const Login = ({ onLogin, role, onBack }) => {
           });
           
           if (error) throw error;
+          
+          // Check if email is verified
+          if (data.user && !data.user.email_confirmed_at) {
+            showError('Please verify your email before logging in. Check your inbox.');
+            setLoading(false);
+            return;
+          }
+          
           console.log('Mentor login successful:', data);
           showSuccess('Welcome back!');
           
@@ -419,14 +461,65 @@ const Login = ({ onLogin, role, onBack }) => {
 
             {!isSignUp && (
               <div className="mt-4 text-center">
-                <a href="#" className="text-teal-600 hover:text-teal-700 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-teal-600 hover:text-teal-700 text-sm font-medium"
+                >
                   Forgot your password?
-                </a>
+                </button>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 w-full max-w-md">
+            <div className="bg-gradient-to-r from-teal-600 to-cyan-600 p-6 text-white rounded-t-3xl">
+              <h3 className="text-2xl font-bold">Reset Password</h3>
+              <p className="text-teal-100 mt-1">Enter your email to receive reset link</p>
+            </div>
+            
+            <form onSubmit={handleForgotPassword} className="p-6 space-y-4">
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <Input
+                  type="email"
+                  placeholder="Your email address"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  className="pl-12"
+                  required
+                />
+              </div>
+              
+              <div className="flex space-x-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setResetEmail('');
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 bg-gradient-to-r from-teal-600 to-cyan-600"
+                >
+                  {loading ? 'Sending...' : 'Send Reset Link'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

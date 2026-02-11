@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Send } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 const ChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [userInput, setUserInput] = useState('');
+  const [chatData, setChatData] = useState({ name: '', grade: '', interest: '', contact: '' });
   const messagesEndRef = useRef(null);
 
   const conversationFlow = [
@@ -63,6 +65,10 @@ const ChatBot = () => {
   const handleOptionClick = (option) => {
     setMessages(prev => [...prev, { text: option, sender: 'user' }]);
     
+    // Store user selections
+    if (currentStep === 2) setChatData(prev => ({ ...prev, grade: option }));
+    if (currentStep === 3) setChatData(prev => ({ ...prev, interest: option }));
+    
     setTimeout(() => {
       const nextStep = currentStep + 1;
       if (nextStep < conversationFlow.length) {
@@ -72,13 +78,32 @@ const ChatBot = () => {
     }, 800);
   };
 
-  const handleInputSubmit = (e) => {
+  const handleInputSubmit = async (e) => {
     e.preventDefault();
     if (!userInput.trim()) return;
 
     const userName = currentStep === 1 ? userInput : undefined;
+    
+    // Store user data
+    if (currentStep === 1) setChatData(prev => ({ ...prev, name: userInput }));
+    if (currentStep === 5) setChatData(prev => ({ ...prev, contact: userInput }));
+    
     setMessages(prev => [...prev, { text: userInput, sender: 'user', userName }]);
     setUserInput('');
+
+    // Save to database when conversation ends
+    if (currentStep === 5) {
+      try {
+        await supabase.from('contacts').insert({
+          name: chatData.name,
+          email: userInput.includes('@') ? userInput : '',
+          subject: `Chatbot Inquiry - ${chatData.interest}`,
+          message: `Grade: ${chatData.grade}\nInterest: ${chatData.interest}\nContact: ${userInput}`
+        });
+      } catch (error) {
+        console.error('Error saving chatbot data:', error);
+      }
+    }
 
     setTimeout(() => {
       const nextStep = currentStep + 1;

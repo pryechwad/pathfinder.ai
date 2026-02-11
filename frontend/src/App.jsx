@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import Login from './components/auth/Login';
 import Dashboard from './pages/Dashboard';
+import ResetPassword from './pages/ResetPassword';
 import { ToastProvider } from './contexts/ToastContext';
 
 function App() {
@@ -43,19 +45,26 @@ function App() {
 
   return (
     <ToastProvider>
-      <div className="App">
-        {user ? (
-          <Dashboard user={user} onLogout={handleLogout} />
-        ) : showLogin ? (
-          <Login 
-            onLogin={handleLogin} 
-            role={selectedRole}
-            onBack={handleBackToLanding}
-          />
-        ) : (
-          <LandingPage onRoleSelect={handleRoleSelect} />
-        )}
-      </div>
+      <BrowserRouter>
+        <div className="App">
+          <Routes>
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/" element={
+              user ? (
+                <Dashboard user={user} onLogout={handleLogout} />
+              ) : showLogin ? (
+                <Login 
+                  onLogin={handleLogin} 
+                  role={selectedRole}
+                  onBack={handleBackToLanding}
+                />
+              ) : (
+                <LandingPage onRoleSelect={handleRoleSelect} />
+              )
+            } />
+          </Routes>
+        </div>
+      </BrowserRouter>
     </ToastProvider>
   );
 }

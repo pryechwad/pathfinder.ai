@@ -31,6 +31,22 @@ export const authAPI = {
     return { data: { token: authData.session?.access_token, user: authData.user } };
   },
 
+  forgotPassword: async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`
+    });
+    if (error) throw error;
+    return { data: { message: 'Password reset email sent!' } };
+  },
+
+  resetPassword: async (newPassword) => {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+    if (error) throw error;
+    return { data: { message: 'Password updated successfully!' } };
+  },
+
   mentorSignup: async (data) => {
     const { data: mentor, error } = await supabase
       .from('mentors')
