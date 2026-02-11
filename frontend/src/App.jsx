@@ -4,6 +4,7 @@ import LandingPage from './pages/LandingPage';
 import Login from './components/auth/Login';
 import Dashboard from './pages/Dashboard';
 import ResetPassword from './pages/ResetPassword';
+import EmailConfirmed from './pages/EmailConfirmed';
 import { ToastProvider } from './contexts/ToastContext';
 
 function App() {
@@ -49,6 +50,7 @@ function App() {
         <div className="App">
           <Routes>
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/email-confirmed" element={<EmailConfirmed />} />
             <Route path="/" element={
               user ? (
                 <Dashboard user={user} onLogout={handleLogout} />
