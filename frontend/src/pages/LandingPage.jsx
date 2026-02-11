@@ -5,7 +5,7 @@ import {
   Code, Briefcase, MessageCircle, Video, CheckCircle, X, Mail, Search
 } from 'lucide-react';
 import Button from '../components/ui/Button';
-import { contactAPI } from '../utils/api';
+import { supabase } from '../lib/supabase';
 import ChatBot from '../components/ChatBot';
 
 const LandingPage = ({ onRoleSelect }) => {
@@ -119,7 +119,12 @@ const LandingPage = ({ onRoleSelect }) => {
   const handleContactSubmit = async (e) => {
     e.preventDefault();
     try {
-      await contactAPI.submit(contactForm);
+      const { error } = await supabase
+        .from('contacts')
+        .insert([contactForm]);
+      
+      if (error) throw error;
+      
       alert('Thank you for contacting us! We will get back to you soon.');
       setShowContactModal(false);
       setContactForm({ name: '', email: '', subject: '', message: '' });

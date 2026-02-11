@@ -3,7 +3,7 @@ import { User, GraduationCap, Mail, Lock, Phone, School, MapPin, UserCheck, Arro
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Card from '../ui/Card';
-import { authAPI } from '../../utils/api';
+import { supabase } from '../../lib/supabase';
 import { useToast } from '../../contexts/ToastContext';
 
 const Login = ({ onLogin, role, onBack }) => {
@@ -78,48 +78,89 @@ const Login = ({ onLogin, role, onBack }) => {
     
     setLoading(true);
     try {
-      let response;
-      
       if (role === 'student') {
         if (isSignUp) {
-          response = await authAPI.signup(formData);
-          console.log('Signup successful:', response.data);
-          showSuccess('Account created successfully!');
-        } else {
-          response = await authAPI.login({ email: formData.email, password: formData.password });
-          console.log('Login successful:', response.data);
-          showSuccess('Welcome back!');
-        }
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        onLogin({ ...response.data.user, userType: 'student' });
-      } else {
-        if (isSignUp) {
-          response = await authAPI.mentorSignup({
+          // Sign up with Supabase
+          const { data, error } = await supabase.auth.signUp({
             email: formData.email,
             password: formData.password,
-            name: formData.name,
-            title: formData.title,
-            company: formData.company,
-            experience: formData.experience,
-            price: 2000,
-            location: formData.location,
-            bio: formData.bio
+            options: {
+              data: {
+                fullName: formData.fullName,
+                phone: formData.phone,
+                city: formData.city,
+                grade: formData.grade,
+                school: formData.school
+              }
+            }
           });
-          console.log('Mentor signup successful:', response.data);
-          showSuccess('Mentor account created successfully!');
+          
+          if (error) throw error;
+          console.log('Signup successful:', data);
+          showSuccess('Account created successfully! Please check your email.');
+          
+          if (data.user) {
+            onLogin({ ...data.user, userType: 'student' });
+          }
         } else {
-          response = await authAPI.mentorLogin({ email: formData.email, password: formData.password });
-          console.log('Mentor login successful:', response.data);
+          // Sign in with Supabase
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: formData.password
+          });
+          
+          if (error) throw error;
+          console.log('Login successful:', data);
           showSuccess('Welcome back!');
+          
+          if (data.user) {
+            onLogin({ ...data.user, userType: 'student' });
+          }
         }
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('mentor', JSON.stringify(response.data.mentor));
-        onLogin({ ...response.data.mentor, userType: 'mentor' });
+      } else {
+        // Mentor flow - for now using same auth, can be customized later
+        if (isSignUp) {
+          const { data, error } = await supabase.auth.signUp({
+            email: formData.email,
+            password: formData.password,
+            options: {
+              data: {
+                name: formData.name,
+                title: formData.title,
+                company: formData.company,
+                experience: formData.experience,
+                location: formData.location,
+                bio: formData.bio,
+                role: 'MENTOR'
+              }
+            }
+          });
+          
+          if (error) throw error;
+          console.log('Mentor signup successful:', data);
+          showSuccess('Mentor account created successfully!');
+          
+          if (data.user) {
+            onLogin({ ...data.user, userType: 'mentor' });
+          }
+        } else {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: formData.password
+          });
+          
+          if (error) throw error;
+          console.log('Mentor login successful:', data);
+          showSuccess('Welcome back!');
+          
+          if (data.user) {
+            onLogin({ ...data.user, userType: 'mentor' });
+          }
+        }
       }
     } catch (error) {
       console.error('Auth error:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Authentication failed';
+      const errorMessage = error.message || 'Authentication failed';
       showError(errorMessage);
     } finally {
       setLoading(false);
