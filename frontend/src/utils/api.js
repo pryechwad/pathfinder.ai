@@ -67,7 +67,34 @@ export const authAPI = {
 
 export const studentAPI = {
   getDashboard: async (userId) => {
-    return { data: {} };
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select(`
+        *,
+        courses:course_enrollments(
+          *,
+          course:courses(*)
+        ),
+        bookings(
+          *,
+          mentor:mentors(*)
+        ),
+        activities(*),
+        goals:career_goals(*)
+      `)
+      .eq('id', userId)
+      .single();
+    
+    if (userError) throw userError;
+    
+    const stats = {
+      coursesCompleted: user.courses?.filter(c => c.completed).length || 0,
+      careerGoals: user.goals?.length || 0,
+      skillProgress: user.courses?.reduce((acc, c) => acc + (c.progress || 0), 0) / (user.courses?.length || 1) || 0,
+      mentorSessions: user.bookings?.length || 0
+    };
+    
+    return { data: { user, stats } };
   },
   getCourses: async () => {
     const { data, error } = await supabase.from('courses').select('*');
@@ -79,10 +106,10 @@ export const studentAPI = {
     if (error) throw error;
     return { data: {} };
   },
-  updateProgress: async (enrollmentId, data) => {
+  updateProgress: async () => {
     return { data: {} };
   },
-  getActivities: async (userId) => {
+  getActivities: async () => {
     return { data: [] };
   }
 };
@@ -94,15 +121,54 @@ export const mentorAPI = {
     return { data };
   },
   getDashboard: async (mentorId) => {
-    return { data: {} };
+    const { data: mentor, error } = await supabase
+      .from('mentors')
+      .select(`
+        *,
+        bookings(
+          *,
+          user:users(*)
+        )
+      `)
+      .eq('id', mentorId)
+      .single();
+    
+    if (error) throw error;
+    
+    // Add computed fields for bookings
+    const bookingsWithDetails = (mentor.bookings || []).map(booking => ({
+      ...booking,
+      studentName: booking.user?.full_name || 'Student',
+      studentEmail: booking.user?.email || '',
+      avatar: booking.user?.full_name?.substring(0, 2).toUpperCase() || 'ST'
+    }));
+    
+    return { data: { mentor: { ...mentor, bookings: bookingsWithDetails } } };
   }
 };
 
 export const bookingAPI = {
   create: async (data) => {
-    const { error } = await supabase.from('bookings').insert([data]);
+    const orderId = 'ORD' + Date.now();
+    const { data: booking, error } = await supabase
+      .from('bookings')
+      .insert([{
+        user_id: data.userId,
+        mentor_id: data.mentorId,
+        date: data.date,
+        time: data.time,
+        topic: data.topic,
+        duration: parseInt(data.duration),
+        amount: data.amount,
+        order_id: orderId,
+        payment_id: data.paymentId,
+        status: 'CONFIRMED'
+      }])
+      .select()
+      .single();
+    
     if (error) throw error;
-    return { data: {} };
+    return { data: { ...booking, orderId } };
   },
   getUserBookings: async (userId) => {
     const { data, error } = await supabase

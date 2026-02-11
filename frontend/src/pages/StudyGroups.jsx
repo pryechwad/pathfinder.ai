@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, Plus, Video, Calendar, Search, X, Send, MessageCircle, Share2, Copy, Check } from 'lucide-react';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import { supabase } from '../lib/supabase';
 
 export default function StudyGroups() {
   const [groups, setGroups] = useState([]);
@@ -28,10 +26,26 @@ export default function StudyGroups() {
 
   const fetchGroups = async () => {
     try {
-      const params = {};
-      if (searchQuery) params.search = searchQuery;
-      const response = await axios.get(`${API_URL}/study-groups`, { params });
-      setGroups(response.data);
+      let query = supabase
+        .from('study_groups')
+        .select(`
+          *,
+          creator:users!creator_id(full_name),
+          members:study_group_members(count)
+        `);
+
+      if (searchQuery) {
+        query = query.or(`name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
+      }
+
+      const { data } = await query;
+      
+      setGroups(data?.map(g => ({
+        ...g,
+        creator: { fullName: g.creator?.full_name },
+        memberCount: g.members?.[0]?.count || 0,
+        isFull: (g.members?.[0]?.count || 0) >= g.max_members
+      })) || []);
     } catch (error) {
       console.error('Error fetching groups:', error);
     }
@@ -39,11 +53,26 @@ export default function StudyGroups() {
 
   const fetchMyGroups = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/study-groups/my-groups`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setMyGroups(response.data);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('study_group_members')
+        .select(`
+          role,
+          study_groups(
+            *,
+            members:study_group_members(count)
+          )
+        `)
+        .eq('user_id', user.id);
+
+      setMyGroups(data?.map(m => ({
+        ...m.study_groups,
+        userRole: m.role,
+        memberCount: m.study_groups.members?.[0]?.count || 0,
+        members: []
+      })) || []);
     } catch (error) {
       console.error('Error fetching my groups:', error);
     }
@@ -52,12 +81,30 @@ export default function StudyGroups() {
   const handleCreateGroup = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
       
-      const response = await axios.post(`${API_URL}/study-groups`, newGroup, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data: group } = await supabase
+        .from('study_groups')
+        .insert({
+          name: newGroup.name,
+          description: newGroup.description,
+          category: newGroup.category,
+          max_members: newGroup.maxMembers,
+          is_private: newGroup.isPrivate,
+          meeting_link: newGroup.meetingLink,
+          creator_id: user.id
+        })
+        .select()
+        .single();
+
+      if (group) {
+        await supabase.from('study_group_members').insert({
+          group_id: group.id,
+          user_id: user.id,
+          role: 'ADMIN'
+        });
+      }
       
       setShowCreateGroup(false);
       setNewGroup({ name: '', description: '', category: '', maxMembers: 50, isPrivate: false, meetingLink: '' });
@@ -70,10 +117,15 @@ export default function StudyGroups() {
 
   const handleJoinGroup = async (groupId) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`${API_URL}/study-groups/${groupId}/join`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from('study_group_members').insert({
+        group_id: groupId,
+        user_id: user.id,
+        role: 'MEMBER'
       });
+      
       fetchGroups();
       fetchMyGroups();
     } catch (error) {

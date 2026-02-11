@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MessageSquare, ThumbsUp, ThumbsDown, Send, Search, Plus } from 'lucide-react';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import { supabase } from '../lib/supabase';
 
 export default function CommunityForum() {
   const [categories, setCategories] = useState([]);
@@ -19,8 +17,10 @@ export default function CommunityForum() {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get(`${API_URL}/forum/categories`);
-      setCategories(response.data);
+      const { data } = await supabase
+        .from('forum_categories')
+        .select('*');
+      setCategories(data || []);
     } catch (error) {
       console.error('Error fetching categories:', error);
     }
@@ -28,12 +28,31 @@ export default function CommunityForum() {
 
   const fetchPosts = async () => {
     try {
-      const params = {};
-      if (selectedCategory) params.categoryId = selectedCategory;
-      if (searchQuery) params.search = searchQuery;
+      let query = supabase
+        .from('forum_posts')
+        .select(`
+          *,
+          user:users(full_name),
+          comments:forum_comments(count),
+          votes:forum_votes(vote_type)
+        `);
+
+      if (selectedCategory) {
+        query = query.eq('category_id', selectedCategory);
+      }
+      if (searchQuery) {
+        query = query.or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`);
+      }
+
+      const { data } = await query.order('created_at', { ascending: false });
       
-      const response = await axios.get(`${API_URL}/forum/posts`, { params });
-      setPosts(response.data);
+      setPosts(data?.map(p => ({
+        ...p,
+        user: { fullName: p.user?.full_name },
+        commentsCount: p.comments?.[0]?.count || 0,
+        upvotes: p.votes?.filter(v => v.vote_type === 'UPVOTE').length || 0,
+        downvotes: p.votes?.filter(v => v.vote_type === 'DOWNVOTE').length || 0
+      })) || []);
     } catch (error) {
       console.error('Error fetching posts:', error);
     }
@@ -42,15 +61,17 @@ export default function CommunityForum() {
   const handleCreatePost = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(
-        `${API_URL}/forum/posts`,
-        {
-          ...newPost,
-          tags: newPost.tags.split(',').map(t => t.trim())
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from('forum_posts').insert({
+        user_id: user.id,
+        category_id: newPost.categoryId,
+        title: newPost.title,
+        content: newPost.content,
+        tags: newPost.tags.split(',').map(t => t.trim()).filter(Boolean)
+      });
+
       setShowCreatePost(false);
       setNewPost({ title: '', content: '', categoryId: '', tags: '' });
       fetchPosts();
@@ -61,12 +82,15 @@ export default function CommunityForum() {
 
   const handleVote = async (postId, voteType) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(
-        `${API_URL}/forum/votes`,
-        { postId, voteType },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from('forum_votes').upsert({
+        post_id: postId,
+        user_id: user.id,
+        vote_type: voteType
+      }, { onConflict: 'post_id,user_id' });
+
       fetchPosts();
     } catch (error) {
       console.error('Error voting:', error);
@@ -124,7 +148,7 @@ export default function CommunityForum() {
             >
               <div className="text-2xl mb-2">{cat.icon}</div>
               <div className="font-semibold text-sm">{cat.name}</div>
-              <div className="text-xs text-gray-500">{cat.postsCount} posts</div>
+              <div className="text-xs text-gray-500">{cat.posts_count} posts</div>
             </button>
           ))}
         </div>
@@ -159,7 +183,7 @@ export default function CommunityForum() {
                     </span>
                     <span>{post.views} views</span>
                     <span>by {post.user.fullName}</span>
-                    <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+                    <span>{new Date(post.created_at).toLocaleDateString()}</span>
                   </div>
                   {post.tags.length > 0 && (
                     <div className="flex gap-2 mt-3">

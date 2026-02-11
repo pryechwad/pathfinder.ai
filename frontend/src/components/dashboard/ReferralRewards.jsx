@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Gift, Copy, Users, TrendingUp, Award, ShoppingCart, Zap, Star, DollarSign, CheckCircle, Share2 } from 'lucide-react';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import { supabase } from '../../lib/supabase';
 
 export default function ReferralRewards() {
   const [stats, setStats] = useState(null);
@@ -18,28 +16,56 @@ export default function ReferralRewards() {
 
   const fetchReferralStats = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setStats({ totalPoints: 0, totalReferrals: 0, completedReferrals: 0, pendingReferrals: 0, totalEarned: 0, referralCode: 'LOADING' });
-        return;
-      }
-      const response = await axios.get(`${API_URL}/referrals/stats`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userData } = await supabase
+        .from('users')
+        .select('points, referral_code')
+        .eq('id', user.id)
+        .single();
+
+      const { data: referrals } = await supabase
+        .from('referrals')
+        .select('status')
+        .eq('referrer_id', user.id);
+
+      const { data: pointsData } = await supabase
+        .from('points_history')
+        .select('points')
+        .eq('user_id', user.id)
+        .gte('points', 0);
+
+      const totalReferrals = referrals?.length || 0;
+      const completedReferrals = referrals?.filter(r => r.status === 'COMPLETED').length || 0;
+      const pendingReferrals = referrals?.filter(r => r.status === 'PENDING').length || 0;
+      const totalEarned = pointsData?.reduce((sum, p) => sum + p.points, 0) || 0;
+
+      setStats({
+        totalPoints: userData?.points || 0,
+        totalReferrals,
+        completedReferrals,
+        pendingReferrals,
+        totalEarned,
+        referralCode: userData?.referral_code || 'N/A'
       });
-      setStats(response.data);
     } catch (error) {
       console.error('Error fetching referral stats:', error);
-      setStats({ totalPoints: 0, totalReferrals: 0, completedReferrals: 0, pendingReferrals: 0, totalEarned: 0, referralCode: 'ERROR' });
     }
   };
 
   const fetchPointsHistory = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/referrals/points-history`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setPointsHistory(response.data.history);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('points_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      setPointsHistory(data || []);
     } catch (error) {
       console.error('Error fetching points history:', error);
     }
@@ -80,19 +106,35 @@ Use my referral code: ${stats.referralCode}
 
   const handleRedeem = async () => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(
-        `${API_URL}/referrals/redeem`,
-        { points: parseInt(redeemPoints) },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const pointsToRedeem = parseInt(redeemPoints);
+      if (pointsToRedeem > stats.totalPoints) {
+        alert('Insufficient points');
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from('points_history').insert({
+        user_id: user.id,
+        points: -pointsToRedeem,
+        type: 'PURCHASE',
+        description: `Redeemed ${pointsToRedeem} points`
+      });
+
+      await supabase
+        .from('users')
+        .update({ points: stats.totalPoints - pointsToRedeem })
+        .eq('id', user.id);
+
       setShowRedeemModal(false);
       setRedeemPoints('');
       fetchReferralStats();
       fetchPointsHistory();
       alert('Points redeemed successfully!');
     } catch (error) {
-      alert(error.response?.data?.error || 'Error redeeming points');
+      alert('Error redeeming points');
+      console.error(error);
     }
   };
 
@@ -290,7 +332,7 @@ Use my referral code: ${stats.referralCode}
                 <div>
                   <p className="font-semibold text-gray-900">{item.description}</p>
                   <p className="text-sm text-gray-500">
-                    {new Date(item.createdAt).toLocaleDateString('en-IN', { 
+                    {new Date(item.created_at).toLocaleDateString('en-IN', { 
                       day: 'numeric', 
                       month: 'short', 
                       year: 'numeric'
