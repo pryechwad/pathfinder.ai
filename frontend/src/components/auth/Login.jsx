@@ -118,7 +118,7 @@ const Login = ({ onLogin, role, onBack }) => {
                 grade: formData.grade,
                 school: formData.school
               },
-              emailRedirectTo: `${window.location.origin}/login`
+              emailRedirectTo: `${window.location.origin}/email-confirmed`
             }
           });
           
@@ -167,7 +167,7 @@ const Login = ({ onLogin, role, onBack }) => {
                 bio: formData.bio,
                 role: 'MENTOR'
               },
-              emailRedirectTo: `${window.location.origin}/login`
+              emailRedirectTo: `${window.location.origin}/email-confirmed`
             }
           });
           
